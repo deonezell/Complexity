@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    canvas {
+      width: 100%;
+      height: 400px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .controls {
+      margin-top: 20px;
+      padding: 16px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 16px;
+    }
+    
+    .control-group {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    input[type="range"] {
+      width: 100%;
+    }
+    
+    button {
+      padding: 8px 16px;
+      background-color: #4a7bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    button:hover {
+      background-color: #3a6ae8;
+    }
+    
+    .info {
+      margin-top: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #555;
+    }
+    
+    h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    
+    ul {
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Cultural Cohesion Simulation</h1>
+    
+    <canvas id="simulationCanvas"></canvas>
+    
+    <div class="controls">
+      <div class="control-row">
+        <button id="toggleSimulation">Pause</button>
+        <button id="resetSimulation">Reset Simulation</button>
+      </div>
+      
+      <div class="control-row">
+        <div class="control-group">
+          <label for="agentCount">Agents: <span id="agentCountValue">200</span></label>
+          <input type="range" id="agentCount" min="50" max="500" value="200">
+        </div>
+        
+        <div class="control-group">
+          <label for="culturalGroups">Cultural Groups: <span id="culturalGroupsValue">3</span></label>
+          <input type="range" id="culturalGroups" min="1" max="10" value="3">
+        </div>
+      </div>
+      
+      <div class="control-row">
+        <div class="control-group">
+          <label for="cohesion">Cultural Cohesion: <span id="cohesionValue">0.005</span></label>
+          <input type="range" id="cohesion" min="0.001" max="0.02" step="0.001" value="0.005">
+        </div>
+        
+        <div class="control-group">
+          <label for="conformity">Conformity: <span id="conformityValue">0.05</span></label>
+          <input type="range" id="conformity" min="0.01" max="0.2" step="0.01" value="0.05">
+        </div>
+      </div>
+      
+      <div class="control-row">
+        <div class="control-group">
+          <label for="individuality">Individuality: <span id="individualityValue">0.05</span></label>
+          <input type="range" id="individuality" min="0.01" max="0.2" step="0.01" value="0.05">
+        </div>
+        
+        <div class="control-group">
+          <label for="innovation">Innovation Rate: <span id="innovationValue">0.01</span></label>
+          <input type="range" id="innovation" min="0.001" max="0.05" step="0.001" value="0.01">
+        </div>
+      </div>
+      
+      <div class="control-row">
+        <div class="control-group">
+          <label for="communicationRange">Communication Range: <span id="communicationRangeValue">50</span></label>
+          <input type="range" id="communicationRange" min="20" max="100" value="50">
+        </div>
+      </div>
+    </div>
+    
+    <div class="info">
+      <h2>About Cultural Dynamics Simulation</h2>
+      <p>
+        This simulation models how cultural values spread and evolve within populations.
+        Each colored dot represents an individual with unique cultural values (shown by its color),
+        and the larger circles represent cultural centers or institutions.
+      </p>
+      <ul>
+        <li><strong>Cultural Cohesion:</strong> How strongly individuals are drawn to those with similar values</li>
+        <li><strong>Conformity:</strong> Tendency to adopt the cultural values of those around you</li>
+        <li><strong>Individuality:</strong> Resistance to change and maintenance of unique identity</li>
+        <li><strong>Innovation Rate:</strong> How frequently new cultural ideas emerge</li>
+        <li><strong>Communication Range:</strong> How far cultural influence spreads</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // Canvas setup
+    const canvas = document.getElementById('simulationCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas dimensions to match its display size
+    function resizeCanvas() {
+      const displayWidth = canvas.clientWidth;
+      const displayHeight = canvas.clientHeight;
+      
+      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+        canvas.width = displayWidth;
+        canvas.height = displayHeight;
+      }
+    }
+    
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Simulation parameters
+    let isRunning = true;
+    let agents = [];
+    let culturalCenters = [];
+    
+    // Parameters with default values
+    let agentCount = 200;
+    let culturalGroups = 3;
+    let cohesionStrength = 0.005;
+    let conformityStrength = 0.05;
+    let individualityStrength = 0.05;
+    let innovationRate = 0.01;
+    let communicationRange = 50;
+    
+    // Vector class for 2D operations
+    class Vector2 {
+      constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
+      }
+      
+      add(v) {
+        this.x += v.x;
+        this.y += v.y;
+        return this;
+      }
+      
+      subtract(v) {
+        this.x -= v.x;
+        this.y -= v.y;
+        return this;
+      }
+      
+      multiply(scalar) {
+        this.x *= scalar;
+        this.y *= scalar;
+        return this;
+      }
+      
+      divide(scalar) {
+        if (scalar !== 0) {
+          this.x /= scalar;
+          this.y /= scalar;
+        }
+        return this;
+      }
+      
+      length() {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+      }
+      
+      normalize() {
+        const len = this.length();
+        if (len !== 0) {
+          this.x /= len;
+          this.y /= len;
+        }
+        return this;
+      }
+      
+      clone() {
+        return new Vector2(this.x, this.y);
+      }
+      
+      distanceTo(v) {
+        const dx = this.x - v.x;
+        const dy = this.y - v.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+    
+    // Color class for handling RGB values
+    class Color {
+      constructor(r = 0, g = 0, b = 0) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+      }
+      
+      toCSS() {
+        const r = Math.floor(this.r * 255);
+        const g = Math.floor(this.g * 255);
+        const b = Math.floor(this.b * 255);
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+      
+      clone() {
+        return new Color(this.r, this.g, this.b);
+      }
+      
+      distanceTo(color) {
+        const dr = this.r - color.r;
+        const dg = this.g - color.g;
+        const db = this.b - color.b;
+        return Math.sqrt(dr * dr + dg * dg + db * db) / Math.sqrt(3);
+      }
+      
+      add(color) {
+        this.r += color.r;
+        this.g += color.g;
+        this.b += color.b;
+        return this;
+      }
+      
+      divide(scalar) {
+        if (scalar !== 0) {
+          this.r /= scalar;
+          this.g /= scalar;
+          this.b /= scalar;
+        }
+        return this;
+      }
+    }
+    
+    // Agent class
+    class Agent {
+      constructor(x, y) {
+        this.position = new Vector2(x, y);
+        this.velocity = new Vector2(
+          Math.random() * 2 - 1,
+          Math.random() * 2 - 1
+        ).normalize().multiply(Math.random() * 2 + 1);
+        
+        this.color = new Color(
+          Math.random(),
+          Math.random(),
+          Math.random()
+        );
+        
+        this.culturalInertia = Math.random() * 0.5 + 0.5;
+        this.innovation = Math.random() * 0.2;
+        this.radius = 4;
+      }
+      
+      update() {
+        // Apply velocity
+        this.position.add(this.velocity);
+        
+        // Wrap around boundaries
+        const width = canvas.width;
+        const height = canvas.height;
+        const padding = 20;
+        
+        if (this.position.x < padding) this.position.x = width - padding;
+        if (this.position.x > width - padding) this.position.x = padding;
+        if (this.position.y < padding) this.position.y = height - padding;
+        if (this.position.y > height - padding) this.position.y = padding;
+      }
+      
+      draw() {
+        ctx.fillStyle = this.color.toCSS();
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    // Cultural Center class
+    class CulturalCenter {
+      constructor(x, y) {
+        this.position = new Vector2(x, y);
+        this.color = new Color(
+          Math.random(),
+          Math.random(),
+          Math.random()
+        );
+        this.radius = 15;
+      }
+      
+      draw() {
+        ctx.fillStyle = this.color.toCSS();
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        
+        // Draw border
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    
+    // Initialize simulation
+    function initSimulation() {
+      agents = [];
+      culturalCenters = [];
+      
+      // Create cultural centers
+      for (let i = 0; i < culturalGroups; i++) {
+        const x = Math.random() * (canvas.width - 100) + 50;
+        const y = Math.random() * (canvas.height - 100) + 50;
+        culturalCenters.push(new CulturalCenter(x, y));
+      }
+      
+      // Create agents
+      for (let i = 0; i < agentCount; i++) {
+        const x = Math.random() * (canvas.width - 40) + 20;
+        const y = Math.random() * (canvas.height - 40) + 20;
+        agents.push(new Agent(x, y));
+      }
+    }
+    
+    // Update simulation
+    function updateSimulation() {
+      // Apply cultural dynamics
+      for (let i = 0; i < agents.length; i++) {
+        const agent = agents[i];
+        
+        // Find neighbors within communication range
+        const neighbors = [];
+        for (let j = 0; j < agents.length; j++) {
+          if (i !== j) {
+            const distance = agent.position.distanceTo(agents[j].position);
+            if (distance < communicationRange) {
+              neighbors.push(agents[j]);
+            }
+          }
+        }
+        
+        if (neighbors.length > 0) {
+          // Cohesion - move toward similar cultures
+          const cohesion = new Vector2();
+          let cohesionCount = 0;
+          
+          for (const neighbor of neighbors) {
+            const similarity = 1 - agent.color.distanceTo(neighbor.color);
+            
+            if (similarity > 0.7) {
+              cohesion.add(neighbor.position);
+              cohesionCount++;
+            }
+          }
+          
+          if (cohesionCount > 0) {
+            cohesion.divide(cohesionCount).subtract(agent.position).multiply(cohesionStrength);
+            agent.velocity.add(cohesion);
+          }
+          
+          // Conformity - adopt neighbor colors
+          const conformity = new Color();
+          let conformityCount = 0;
+          
+          for (const neighbor of neighbors) {
+            conformity.add(neighbor.color);
+            conformityCount++;
+          }
+          
+          if (conformityCount > 0) {
+            conformity.divide(conformityCount);
+            
+            // Apply conformity based on cultural inertia
+            agent.color.r += (conformity.r - agent.color.r) * conformityStrength * (1 - agent.culturalInertia);
+            agent.color.g += (conformity.g - agent.color.g) * conformityStrength * (1 - agent.culturalInertia);
+            agent.color.b += (conformity.b - agent.color.b) * conformityStrength * (1 - agent.culturalInertia);
+          }
+          
+          // Individuality - avoid very different cultures
+          const separation = new Vector2();
+          let separationCount = 0;
+          
+          for (const neighbor of neighbors) {
+            const distance = agent.position.distanceTo(neighbor.position);
+            const culturalDifference = agent.color.distanceTo(neighbor.color);
+            
+            if (culturalDifference > 0.5 && distance < communicationRange * 0.5) {
+              const diff = new Vector2(
+                agent.position.x - neighbor.position.x,
+                agent.position.y - neighbor.position.y
+              );
+              
+              diff.divide(distance);
+              separation.add(diff);
+              separationCount++;
+            }
+          }
+          
+          if (separationCount > 0) {
+            separation.divide(separationCount).multiply(individualityStrength);
+            agent.velocity.add(separation);
+          }
+        }
+        
+        // Cultural center influence
+        let closestCenterIdx = 0;
+        let closestDistance = Infinity;
+        
+        for (let c = 0; c < culturalCenters.length; c++) {
+          const distance = agent.position.distanceTo(culturalCenters[c].position);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestCenterIdx = c;
+          }
+        }
+        
+        // Move toward and be influenced by the cultural center
+        if (closestDistance < communicationRange * 1.5) {
+          const centerDirection = new Vector2(
+            culturalCenters[closestCenterIdx].position.x - agent.position.x,
+            culturalCenters[closestCenterIdx].position.y - agent.position.y
+          );
+          
+          centerDirection.normalize().multiply(cohesionStrength * 2);
+          agent.velocity.add(centerDirection);
+          
+          // Cultural influence from the center
+          const centerInfluence = cohesionStrength * 10 / (1 + closestDistance * 0.01);
+          
+          agent.color.r += (culturalCenters[closestCenterIdx].color.r - agent.color.r) * 
+                         centerInfluence * (1 - agent.culturalInertia);
+          agent.color.g += (culturalCenters[closestCenterIdx].color.g - agent.color.g) * 
+                         centerInfluence * (1 - agent.culturalInertia);
+          agent.color.b += (culturalCenters[closestCenterIdx].color.b - agent.color.b) * 
+                         centerInfluence * (1 - agent.culturalInertia);
+        }
+        
+        // Innovation - random cultural drift
+        if (Math.random() < innovationRate * agent.innovation) {
+          agent.color.r += (Math.random() - 0.5) * 0.1;
+          agent.color.g += (Math.random() - 0.5) * 0.1;
+          agent.color.b += (Math.random() - 0.5) * 0.1;
+          
+          // Keep colors in valid range
+          agent.color.r = Math.max(0, Math.min(1, agent.color.r));
+          agent.color.g = Math.max(0, Math.min(1, agent.color.g));
+          agent.color.b = Math.max(0, Math.min(1, agent.color.b));
+        }
+        
+        // Speed limit
+        const maxSpeed = 3;
+        if (agent.velocity.length() > maxSpeed) {
+          agent.velocity.normalize().multiply(maxSpeed);
+        }
+        
+        // Update position
+        agent.update();
+      }
+      
+      // Occasionally update cultural centers
+      if (Math.random() < innovationRate * 0.5) {
+        const centerIndex = Math.floor(Math.random() * culturalCenters.length);
+        const center = culturalCenters[centerIndex];
+        
+        // Gradual shift in cultural values
+        center.color.r += (Math.random() - 0.5) * 0.1;
+        center.color.g += (Math.random() - 0.5) * 0.1;
+        center.color.b += (Math.random() - 0.5) * 0.1;
+        
+        // Keep colors in valid range
+        center.color.r = Math.max(0, Math.min(1, center.color.r));
+        center.color.g = Math.max(0, Math.min(1, center.color.g));
+        center.color.b = Math.max(0, Math.min(1, center.color.b));
+      }
+    }
+    
+    // Draw everything
+    function drawSimulation() {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw agents
+      for (const agent of agents) {
+        agent.draw();
+      }
+      
+      // Draw cultural centers
+      for (const center of culturalCenters) {
+        center.draw();
+      }
+    }
+    
+    // Animation loop
+    let animationId;
+    
+    function animate() {
+      if (isRunning) {
+        updateSimulation();
+      }
+      
+      drawSimulation();
+      animationId = requestAnimationFrame(animate);
+    }
+    
+    // Initialize and start
+    initSimulation();
+    animate();
+    
+    // UI interaction
+    const toggleButton = document.getElementById('toggleSimulation');
+    toggleButton.addEventListener('click', () => {
+      isRunning = !isRunning;
+      toggleButton.textContent = isRunning ? 'Pause' : 'Resume';
+    });
+    
+    const resetButton = document.getElementById('resetSimulation');
+    resetButton.addEventListener('click', () => {
+      initSimulation();
+    });
+    
+    // Setup all sliders
+    function setupSlider(id, valueId, variable, min, max, step, callback) {
+      const slider = document.getElementById(id);
+      const valueLabel = document.getElementById(valueId);
+      
+      slider.min = min;
+      slider.max = max;
+      slider.step = step || 1;
+      slider.value = variable;
+      
+      valueLabel.textContent = variable;
+      
+      slider.addEventListener('input', () => {
+        const value = parseFloat(slider.value);
+        valueLabel.textContent = value;
+        
+        if (callback) {
+          callback(value);
+        }
+      });
+    }
+    
+    setupSlider('agentCount', 'agentCountValue', agentCount, 50, 500, 1, (value) => {
+      agentCount = value;
+      initSimulation();
+    });
+    
+    setupSlider('culturalGroups', 'culturalGroupsValue', culturalGroups, 1, 10, 1, (value) => {
+      culturalGroups = value;
+      initSimulation();
+    });
+    
+    setupSlider('cohesion', 'cohesionValue', cohesionStrength, 0.001, 0.02, 0.001, (value) => {
+      cohesionStrength = value;
+    });
+    
+    setupSlider('conformity', 'conformityValue', conformityStrength, 0.01, 0.2, 0.01, (value) => {
+      conformityStrength = value;
+    });
+    
+    setupSlider('individuality', 'individualityValue', individualityStrength, 0.01, 0.2, 0.01, (value) => {
+      individualityStrength = value;
+    });
+    
+    setupSlider('innovation', 'innovationValue', innovationRate, 0.001, 0.05, 0.001, (value) => {
+      innovationRate = value;
+    });
+    
+    setupSlider('communicationRange', 'communicationRangeValue', communicationRange, 20, 100, 1, (value) => {
+      communicationRange = value;
+    });
+  </script>
+</body>
+</html>
